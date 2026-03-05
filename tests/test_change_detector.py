@@ -1,6 +1,6 @@
 import unittest
 
-from competitor_radar import detect_changes
+from competitor_radar import detect_changes, summarize_changes
 
 
 class DetectChangesTests(unittest.TestCase):
@@ -42,6 +42,26 @@ class DetectChangesTests(unittest.TestCase):
 
         self.assertEqual(1, len(changes))
         self.assertEqual("messaging", changes[0].field)
+
+
+class SummarizeChangesTests(unittest.TestCase):
+    def test_groups_changes_per_competitor(self):
+        previous = [
+            {"competitor": "A", "pricing": "$10", "positioning": "Old"},
+            {"competitor": "B", "pricing": "$20", "positioning": "Same"},
+        ]
+        current = [
+            {"competitor": "A", "pricing": "$15", "positioning": "New"},
+            {"competitor": "B", "pricing": "$20", "positioning": "Same"},
+        ]
+
+        changes = detect_changes(previous, current, tracked_fields=["pricing", "positioning"])
+        summary = summarize_changes(changes)
+
+        self.assertEqual(1, len(summary))
+        self.assertEqual("A", summary[0].competitor)
+        self.assertEqual(2, summary[0].change_count)
+        self.assertEqual(("positioning", "pricing"), summary[0].changed_fields)
 
 
 if __name__ == "__main__":

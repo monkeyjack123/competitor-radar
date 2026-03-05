@@ -12,6 +12,13 @@ class ChangeRecord:
     current: str
 
 
+@dataclass(frozen=True)
+class ChangeSummary:
+    competitor: str
+    changed_fields: tuple[str, ...]
+    change_count: int
+
+
 def _normalized(value: object) -> str:
     if value is None:
         return ""
@@ -54,3 +61,24 @@ def detect_changes(
                 )
 
     return changes
+
+
+def summarize_changes(changes: Sequence[ChangeRecord]) -> list[ChangeSummary]:
+    """Group field-level changes into per-competitor summaries."""
+
+    by_competitor: dict[str, list[str]] = {}
+    for change in changes:
+        by_competitor.setdefault(change.competitor, []).append(change.field)
+
+    summaries: list[ChangeSummary] = []
+    for competitor in sorted(by_competitor):
+        fields = tuple(sorted(by_competitor[competitor]))
+        summaries.append(
+            ChangeSummary(
+                competitor=competitor,
+                changed_fields=fields,
+                change_count=len(fields),
+            )
+        )
+
+    return summaries

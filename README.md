@@ -48,3 +48,9 @@ Optional: track a custom field list by repeating `--field`:
 PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --field positioning
 ```
 
+Include a per-competitor summary (change count + changed fields):
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --field positioning --summary
+```
+

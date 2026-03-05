@@ -28,6 +28,26 @@ class CliTests(unittest.TestCase):
                 records,
             )
 
+    def test_run_change_report_includes_summary_when_requested(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "snapshots.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "previous": [{"competitor": "Acme", "pricing": "$10", "positioning": "Old"}],
+                        "current": [{"competitor": "Acme", "pricing": "$20", "positioning": "New"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            report = run_change_report(path, tracked_fields=["pricing", "positioning"], include_summary=True)
+
+            self.assertIn("changes", report)
+            self.assertIn("summary", report)
+            self.assertEqual(2, len(report["changes"]))
+            self.assertEqual(2, report["summary"][0]["change_count"])
+
     def test_cli_module_outputs_json_report(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "snapshots.json"
@@ -59,6 +79,40 @@ class CliTests(unittest.TestCase):
             output = json.loads(proc.stdout)
             self.assertEqual("Nova", output[0]["competitor"])
             self.assertEqual("positioning", output[0]["field"])
+
+    def test_cli_module_outputs_summary_report(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "snapshots.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "previous": [{"competitor": "Nova", "positioning": "Old", "pricing": "$10"}],
+                        "current": [{"competitor": "Nova", "positioning": "New", "pricing": "$20"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    "python3",
+                    "-m",
+                    "competitor_radar.cli",
+                    str(path),
+                    "--field",
+                    "positioning",
+                    "--field",
+                    "pricing",
+                    "--summary",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                env={"PYTHONPATH": "src"},
+            )
+
+            output = json.loads(proc.stdout)
+            self.assertEqual(2, output["summary"][0]["change_count"])
 
     def test_run_change_report_rejects_bad_input_shape(self):
         with tempfile.TemporaryDirectory() as tmpdir:
