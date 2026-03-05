@@ -1,0 +1,30 @@
+{
+  "previous": [
+    {
+      "competitor": "Acme AI",
+      "positioning": "AI drafts product docs",
+      "pricing": "$49/mo",
+      "feature_highlight": "single-shot PRD"
+    },
+    {
+      "competitor": "Nova PM",
+      "positioning": "Ops co-pilot for PM teams",
+      "pricing": "$99/mo",
+      "feature_highlight": "weekly execution reports"
+    }
+  ],
+  "current": [
+    {
+      "competitor": "Acme AI",
+      "positioning": "AI drafts and validates product docs",
+      "pricing": "$79/mo",
+      "feature_highlight": "single-shot PRD"
+    },
+    {
+      "competitor": "Nova PM",
+      "positioning": "Ops co-pilot for PM and growth teams",
+      "pricing": "$99/mo",
+      "feature_highlight": "weekly execution reports"
+    }
+  ]
+}

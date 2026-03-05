@@ -18,5 +18,21 @@ This project helps teams launch products faster with measurable outcomes.
 
 ## Getting started
 
-authoring in progress.
+### Run tests
+
+```bash
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+### MVP change-detection example
+
+```python
+from competitor_radar import detect_changes
+
+changes = detect_changes(previous_snapshot, current_snapshot)
+for item in changes:
+    print(item)
+```
+
+See `docs/change-detection.md` and `examples/snapshots.json` for the demo input/output shape.
 
