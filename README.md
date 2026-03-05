@@ -36,3 +36,15 @@ for item in changes:
 
 See `docs/change-detection.md` and `examples/snapshots.json` for the demo input/output shape.
 
+### CLI demo
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json
+```
+
+Optional: track a custom field list by repeating `--field`:
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --field positioning
+```
+

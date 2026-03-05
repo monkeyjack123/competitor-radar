@@ -22,5 +22,18 @@ Returns a list of `ChangeRecord` entries:
 - `previous`
 - `current`
 
+## CLI change report
+Run the CLI against a snapshot payload (`previous` + `current`) to generate a JSON change report:
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json
+```
+
+You can scope comparison fields:
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --field positioning
+```
+
 ## Demo data
 See `examples/snapshots.json` for before/after sample snapshots suitable for smoke tests and demos.
