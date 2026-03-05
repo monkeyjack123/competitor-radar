@@ -62,5 +62,11 @@ PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --presenc
 
 `--summary` and `--presence` can be combined in the same run.
 
+Use `--fail-on-change` to return exit code `1` if any change is detected (handy for CI guardrails):
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --fail-on-change
+```
+
 ## Demo data
 See `examples/snapshots.json` for before/after sample snapshots suitable for smoke tests and demos.

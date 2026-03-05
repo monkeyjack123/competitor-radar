@@ -87,6 +87,16 @@ def run_change_report(
     return response
 
 
+def _change_count(report: list[dict[str, str]] | dict[str, object]) -> int:
+    if isinstance(report, list):
+        return len(report)
+
+    changes = report.get("changes")
+    if isinstance(changes, list):
+        return len(changes)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="competitor-radar",
@@ -109,6 +119,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Include added/removed competitor presence changes",
     )
+    parser.add_argument(
+        "--fail-on-change",
+        action="store_true",
+        help="Exit with status 1 when one or more changes are detected (for CI checks)",
+    )
     return parser
 
 
@@ -127,6 +142,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.exit(2, f"error: {exc}\n")
 
     print(json.dumps(report, indent=2))
+
+    if args.fail_on_change and _change_count(report) > 0:
+        return 1
+
     return 0
 
 

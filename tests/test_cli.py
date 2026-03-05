@@ -164,6 +164,72 @@ class CliTests(unittest.TestCase):
             self.assertEqual(["Nova"], output["presence"]["added"])
             self.assertEqual(["Acme"], output["presence"]["removed"])
 
+    def test_cli_module_fail_on_change_exits_non_zero(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "snapshots.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "previous": [{"competitor": "Nova", "positioning": "Old"}],
+                        "current": [{"competitor": "Nova", "positioning": "New"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    "python3",
+                    "-m",
+                    "competitor_radar.cli",
+                    str(path),
+                    "--field",
+                    "positioning",
+                    "--fail-on-change",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env={"PYTHONPATH": "src"},
+            )
+
+            self.assertEqual(1, proc.returncode)
+            output = json.loads(proc.stdout)
+            self.assertEqual("Nova", output[0]["competitor"])
+
+    def test_cli_module_fail_on_change_exits_zero_when_no_changes(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "snapshots.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "previous": [{"competitor": "Nova", "positioning": "Same"}],
+                        "current": [{"competitor": "Nova", "positioning": "Same"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    "python3",
+                    "-m",
+                    "competitor_radar.cli",
+                    str(path),
+                    "--field",
+                    "positioning",
+                    "--fail-on-change",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env={"PYTHONPATH": "src"},
+            )
+
+            self.assertEqual(0, proc.returncode)
+            output = json.loads(proc.stdout)
+            self.assertEqual([], output)
+
     def test_run_change_report_rejects_bad_input_shape(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "bad.json"

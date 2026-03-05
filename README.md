@@ -60,3 +60,9 @@ Include competitor presence deltas (added/removed competitors between snapshots)
 PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --presence
 ```
 
+Fail the command when changes are detected (useful in CI checks):
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --fail-on-change
+```
+
