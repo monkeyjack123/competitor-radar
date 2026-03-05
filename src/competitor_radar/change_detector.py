@@ -19,10 +19,34 @@ class ChangeSummary:
     change_count: int
 
 
+@dataclass(frozen=True)
+class PresenceDelta:
+    added: tuple[str, ...]
+    removed: tuple[str, ...]
+
+
 def _normalized(value: object) -> str:
     if value is None:
         return ""
     return str(value).strip()
+
+
+def _index_by_competitor(snapshot: Sequence[Mapping[str, object]]) -> dict[str, Mapping[str, object]]:
+    return {_normalized(item.get("competitor")): item for item in snapshot}
+
+
+def detect_presence_changes(
+    previous_snapshot: Sequence[Mapping[str, object]],
+    current_snapshot: Sequence[Mapping[str, object]],
+) -> PresenceDelta:
+    """Detect added/removed competitors between snapshots."""
+
+    previous_names = {name for name in _index_by_competitor(previous_snapshot) if name}
+    current_names = {name for name in _index_by_competitor(current_snapshot) if name}
+
+    added = tuple(sorted(current_names - previous_names))
+    removed = tuple(sorted(previous_names - current_names))
+    return PresenceDelta(added=added, removed=removed)
 
 
 def detect_changes(
@@ -37,8 +61,8 @@ def detect_changes(
     """
 
     fields = tuple(tracked_fields or ("positioning", "pricing", "feature_highlight"))
-    previous_index = {_normalized(item.get("competitor")): item for item in previous_snapshot}
-    current_index = {_normalized(item.get("competitor")): item for item in current_snapshot}
+    previous_index = _index_by_competitor(previous_snapshot)
+    current_index = _index_by_competitor(current_snapshot)
 
     changes: list[ChangeRecord] = []
     for competitor in sorted(set(previous_index) & set(current_index)):

@@ -54,3 +54,9 @@ Include a per-competitor summary (change count + changed fields):
 PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --field positioning --summary
 ```
 
+Include competitor presence deltas (added/removed competitors between snapshots):
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --presence
+```
+

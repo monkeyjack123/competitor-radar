@@ -1,6 +1,6 @@
 import unittest
 
-from competitor_radar import detect_changes, summarize_changes
+from competitor_radar import detect_changes, detect_presence_changes, summarize_changes
 
 
 class DetectChangesTests(unittest.TestCase):
@@ -42,6 +42,17 @@ class DetectChangesTests(unittest.TestCase):
 
         self.assertEqual(1, len(changes))
         self.assertEqual("messaging", changes[0].field)
+
+
+class PresenceDeltaTests(unittest.TestCase):
+    def test_detects_added_and_removed_competitors(self):
+        previous = [{"competitor": "Acme"}, {"competitor": "Nova"}]
+        current = [{"competitor": "Nova"}, {"competitor": "Orbit"}]
+
+        delta = detect_presence_changes(previous, current)
+
+        self.assertEqual(("Orbit",), delta.added)
+        self.assertEqual(("Acme",), delta.removed)
 
 
 class SummarizeChangesTests(unittest.TestCase):

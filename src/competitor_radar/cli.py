@@ -5,7 +5,14 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .change_detector import ChangeRecord, ChangeSummary, detect_changes, summarize_changes
+from .change_detector import (
+    ChangeRecord,
+    ChangeSummary,
+    PresenceDelta,
+    detect_changes,
+    detect_presence_changes,
+    summarize_changes,
+)
 
 
 def _load_payload(path: Path) -> dict[str, Any]:
@@ -40,27 +47,44 @@ def _summary_to_dict(record: ChangeSummary) -> dict[str, object]:
     }
 
 
+def _presence_to_dict(record: PresenceDelta) -> dict[str, list[str]]:
+    return {
+        "added": list(record.added),
+        "removed": list(record.removed),
+    }
+
+
 def run_change_report(
     path: Path,
     tracked_fields: list[str] | None = None,
     include_summary: bool = False,
+    include_presence: bool = False,
 ) -> list[dict[str, str]] | dict[str, object]:
     payload = _load_payload(path)
+    previous_snapshot = payload["previous"]
+    current_snapshot = payload["current"]
+
     changes = detect_changes(
-        previous_snapshot=payload["previous"],
-        current_snapshot=payload["current"],
+        previous_snapshot=previous_snapshot,
+        current_snapshot=current_snapshot,
         tracked_fields=tracked_fields,
     )
     change_rows = [_to_dict(item) for item in changes]
 
-    if not include_summary:
+    if not include_summary and not include_presence:
         return change_rows
 
-    summary_rows = [_summary_to_dict(item) for item in summarize_changes(changes)]
-    return {
-        "changes": change_rows,
-        "summary": summary_rows,
-    }
+    response: dict[str, object] = {"changes": change_rows}
+
+    if include_summary:
+        summary_rows = [_summary_to_dict(item) for item in summarize_changes(changes)]
+        response["summary"] = summary_rows
+
+    if include_presence:
+        presence = detect_presence_changes(previous_snapshot, current_snapshot)
+        response["presence"] = _presence_to_dict(presence)
+
+    return response
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -80,6 +104,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Include per-competitor summary with change_count and changed_fields",
     )
+    parser.add_argument(
+        "--presence",
+        action="store_true",
+        help="Include added/removed competitor presence changes",
+    )
     return parser
 
 
@@ -92,6 +121,7 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.snapshot_file),
             tracked_fields=args.field,
             include_summary=args.summary,
+            include_presence=args.presence,
         )
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         parser.exit(2, f"error: {exc}\n")
