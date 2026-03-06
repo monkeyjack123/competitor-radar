@@ -294,6 +294,64 @@ class CliTests(unittest.TestCase):
             output = json.loads(proc.stdout)
             self.assertEqual([], output)
 
+    def test_run_change_report_includes_diagnostics_when_requested(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "snapshots.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "previous": [
+                            {"competitor": "Nova", "pricing": "$10"},
+                            {"competitor": "nova", "pricing": "$12"},
+                            {"pricing": "$9"},
+                        ],
+                        "current": [{"competitor": "Nova", "pricing": "$20"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            report = run_change_report(path, tracked_fields=["pricing"], include_diagnostics=True)
+
+            self.assertIn("diagnostics", report)
+            self.assertEqual(["Nova"], report["diagnostics"]["previous"]["duplicate_competitors"])
+            self.assertEqual(1, report["diagnostics"]["previous"]["missing_competitor_rows"])
+
+    def test_cli_module_outputs_diagnostics_report(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "snapshots.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "previous": [
+                            {"competitor": "Nova", "pricing": "$10"},
+                            {"competitor": "nova", "pricing": "$12"},
+                        ],
+                        "current": [{"competitor": "Nova", "pricing": "$20"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    "python3",
+                    "-m",
+                    "competitor_radar.cli",
+                    str(path),
+                    "--field",
+                    "pricing",
+                    "--diagnostics",
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                env={"PYTHONPATH": "src"},
+            )
+
+            output = json.loads(proc.stdout)
+            self.assertEqual(["Nova"], output["diagnostics"]["previous"]["duplicate_competitors"])
+
     def test_run_change_report_rejects_bad_input_shape(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "bad.json"

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from typing import Iterable, Mapping, Sequence
 
@@ -23,6 +24,12 @@ class ChangeSummary:
 class PresenceDelta:
     added: tuple[str, ...]
     removed: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class SnapshotDiagnostics:
+    duplicate_competitors: tuple[str, ...]
+    missing_competitor_rows: int
 
 
 def _normalized(value: object) -> str:
@@ -66,6 +73,27 @@ def detect_presence_changes(
     added = tuple(sorted(_display_name(current_index[key]) for key in (set(current_index) - set(previous_index))))
     removed = tuple(sorted(_display_name(previous_index[key]) for key in (set(previous_index) - set(current_index))))
     return PresenceDelta(added=added, removed=removed)
+
+
+def analyze_snapshot(snapshot: Sequence[Mapping[str, object]]) -> SnapshotDiagnostics:
+    """Return duplicate/missing competitor diagnostics for one snapshot."""
+
+    names: list[str] = []
+    missing = 0
+    for item in snapshot:
+        name = _normalized(item.get("competitor"))
+        if not name:
+            missing += 1
+            continue
+        names.append(name)
+
+    counts = Counter(name.casefold() for name in names)
+    first_display: dict[str, str] = {}
+    for name in names:
+        first_display.setdefault(name.casefold(), name)
+
+    duplicates = tuple(sorted(first_display[key] for key, count in counts.items() if count > 1))
+    return SnapshotDiagnostics(duplicate_competitors=duplicates, missing_competitor_rows=missing)
 
 
 def detect_changes(

@@ -60,6 +60,12 @@ Include competitor presence deltas (added/removed competitors between snapshots)
 PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --presence
 ```
 
+Include snapshot diagnostics (duplicate competitors + rows missing `competitor`):
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --diagnostics
+```
+
 Restrict output to one or more competitors (case-insensitive). Competitor matching in change detection/presence is also case-insensitive:
 
 ```bash

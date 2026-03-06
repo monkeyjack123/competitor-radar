@@ -1,6 +1,6 @@
 import unittest
 
-from competitor_radar import detect_changes, detect_presence_changes, summarize_changes
+from competitor_radar import analyze_snapshot, detect_changes, detect_presence_changes, summarize_changes
 
 
 class DetectChangesTests(unittest.TestCase):
@@ -71,6 +71,21 @@ class PresenceDeltaTests(unittest.TestCase):
 
         self.assertEqual(("ORBIT",), delta.added)
         self.assertEqual(("Nova",), delta.removed)
+
+
+class SnapshotDiagnosticsTests(unittest.TestCase):
+    def test_reports_duplicates_and_missing_competitor_rows(self):
+        snapshot = [
+            {"competitor": "Nova", "pricing": "$10"},
+            {"competitor": "  nova ", "pricing": "$12"},
+            {"competitor": "", "pricing": "$9"},
+            {"pricing": "$7"},
+        ]
+
+        diagnostics = analyze_snapshot(snapshot)
+
+        self.assertEqual(("Nova",), diagnostics.duplicate_competitors)
+        self.assertEqual(2, diagnostics.missing_competitor_rows)
 
 
 class SummarizeChangesTests(unittest.TestCase):

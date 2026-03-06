@@ -9,6 +9,8 @@ from .change_detector import (
     ChangeRecord,
     ChangeSummary,
     PresenceDelta,
+    SnapshotDiagnostics,
+    analyze_snapshot,
     detect_changes,
     detect_presence_changes,
     summarize_changes,
@@ -78,11 +80,19 @@ def _presence_to_dict(record: PresenceDelta) -> dict[str, list[str]]:
     }
 
 
+def _diagnostics_to_dict(record: SnapshotDiagnostics) -> dict[str, object]:
+    return {
+        "duplicate_competitors": list(record.duplicate_competitors),
+        "missing_competitor_rows": record.missing_competitor_rows,
+    }
+
+
 def run_change_report(
     path: Path,
     tracked_fields: list[str] | None = None,
     include_summary: bool = False,
     include_presence: bool = False,
+    include_diagnostics: bool = False,
     competitors: list[str] | None = None,
 ) -> list[dict[str, str]] | dict[str, object]:
     payload = _load_payload(path)
@@ -96,7 +106,7 @@ def run_change_report(
     )
     change_rows = [_to_dict(item) for item in changes]
 
-    if not include_summary and not include_presence:
+    if not include_summary and not include_presence and not include_diagnostics:
         return change_rows
 
     response: dict[str, object] = {"changes": change_rows}
@@ -108,6 +118,12 @@ def run_change_report(
     if include_presence:
         presence = detect_presence_changes(previous_snapshot, current_snapshot)
         response["presence"] = _presence_to_dict(presence)
+
+    if include_diagnostics:
+        response["diagnostics"] = {
+            "previous": _diagnostics_to_dict(analyze_snapshot(previous_snapshot)),
+            "current": _diagnostics_to_dict(analyze_snapshot(current_snapshot)),
+        }
 
     return response
 
@@ -151,6 +167,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include added/removed competitor presence changes",
     )
     parser.add_argument(
+        "--diagnostics",
+        action="store_true",
+        help="Include duplicate/missing competitor diagnostics for each snapshot",
+    )
+    parser.add_argument(
         "--fail-on-change",
         action="store_true",
         help="Exit with status 1 when one or more changes are detected (for CI checks)",
@@ -168,6 +189,7 @@ def main(argv: list[str] | None = None) -> int:
             tracked_fields=args.field,
             include_summary=args.summary,
             include_presence=args.presence,
+            include_diagnostics=args.diagnostics,
             competitors=args.competitor,
         )
     except (OSError, json.JSONDecodeError, ValueError) as exc:

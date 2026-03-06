@@ -1,6 +1,6 @@
 # Change Detection (MVP)
 
-`competitor-radar` now includes deterministic field-level change detection for competitor snapshots, plus optional per-competitor summary output and presence deltas.
+`competitor-radar` now includes deterministic field-level change detection for competitor snapshots, plus optional per-competitor summary output, presence deltas, and snapshot diagnostics for duplicate/missing competitor rows.
 
 ## API
 
@@ -68,7 +68,13 @@ You can also restrict report output to specific competitors (case-insensitive, r
 PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --competitor nova --competitor acme
 ```
 
-`--summary` and `--presence` can be combined in the same run.
+You can include diagnostics for data quality checks (duplicate competitors + rows missing `competitor`):
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --diagnostics
+```
+
+`--summary`, `--presence`, and `--diagnostics` can be combined in the same run.
 
 Use `--fail-on-change` to return exit code `1` if any change is detected (handy for CI guardrails):
 
