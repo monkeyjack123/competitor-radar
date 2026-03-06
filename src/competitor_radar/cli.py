@@ -15,6 +15,30 @@ from .change_detector import (
 )
 
 
+def _normalized_name(value: object) -> str:
+    if value is None:
+        return ""
+    return str(value).strip().casefold()
+
+
+def _filter_snapshot_by_competitors(
+    snapshot: list[dict[str, Any]],
+    competitors: list[str] | None,
+) -> list[dict[str, Any]]:
+    if not competitors:
+        return snapshot
+
+    allowed = {_normalized_name(name) for name in competitors if _normalized_name(name)}
+    if not allowed:
+        return snapshot
+
+    return [
+        record
+        for record in snapshot
+        if _normalized_name(record.get("competitor")) in allowed
+    ]
+
+
 def _load_payload(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as handle:
         payload = json.load(handle)
@@ -59,10 +83,11 @@ def run_change_report(
     tracked_fields: list[str] | None = None,
     include_summary: bool = False,
     include_presence: bool = False,
+    competitors: list[str] | None = None,
 ) -> list[dict[str, str]] | dict[str, object]:
     payload = _load_payload(path)
-    previous_snapshot = payload["previous"]
-    current_snapshot = payload["current"]
+    previous_snapshot = _filter_snapshot_by_competitors(payload["previous"], competitors)
+    current_snapshot = _filter_snapshot_by_competitors(payload["current"], competitors)
 
     changes = detect_changes(
         previous_snapshot=previous_snapshot,
@@ -110,6 +135,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Field to track (repeat for multiple fields)",
     )
     parser.add_argument(
+        "--competitor",
+        action="append",
+        default=None,
+        help="Restrict report to one or more competitor names (case-insensitive, repeatable)",
+    )
+    parser.add_argument(
         "--summary",
         action="store_true",
         help="Include per-competitor summary with change_count and changed_fields",
@@ -137,6 +168,7 @@ def main(argv: list[str] | None = None) -> int:
             tracked_fields=args.field,
             include_summary=args.summary,
             include_presence=args.presence,
+            competitors=args.competitor,
         )
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         parser.exit(2, f"error: {exc}\n")

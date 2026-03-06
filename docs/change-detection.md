@@ -60,6 +60,12 @@ You can include presence changes (added/removed competitors):
 PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --presence
 ```
 
+You can also restrict report output to specific competitors (case-insensitive, repeat `--competitor`):
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --competitor nova --competitor acme
+```
+
 `--summary` and `--presence` can be combined in the same run.
 
 Use `--fail-on-change` to return exit code `1` if any change is detected (handy for CI guardrails):
