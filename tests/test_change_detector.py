@@ -34,6 +34,15 @@ class DetectChangesTests(unittest.TestCase):
 
         self.assertEqual([], detect_changes(previous, current, tracked_fields=["pricing"]))
 
+    def test_matches_competitors_case_insensitively(self):
+        previous = [{"competitor": "Acme AI", "pricing": "$10"}]
+        current = [{"competitor": "  acme ai  ", "pricing": "$12"}]
+
+        changes = detect_changes(previous, current, tracked_fields=["pricing"])
+
+        self.assertEqual(1, len(changes))
+        self.assertEqual("acme ai", changes[0].competitor)
+
     def test_supports_custom_fields(self):
         previous = [{"competitor": "A", "messaging": "Ship faster"}]
         current = [{"competitor": "A", "messaging": "Ship fast with guardrails"}]
@@ -53,6 +62,15 @@ class PresenceDeltaTests(unittest.TestCase):
 
         self.assertEqual(("Orbit",), delta.added)
         self.assertEqual(("Acme",), delta.removed)
+
+    def test_presence_matching_is_case_insensitive(self):
+        previous = [{"competitor": "Acme"}, {"competitor": "Nova"}]
+        current = [{"competitor": "acme"}, {"competitor": "ORBIT"}]
+
+        delta = detect_presence_changes(previous, current)
+
+        self.assertEqual(("ORBIT",), delta.added)
+        self.assertEqual(("Nova",), delta.removed)
 
 
 class SummarizeChangesTests(unittest.TestCase):

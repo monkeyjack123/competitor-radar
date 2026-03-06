@@ -24,6 +24,8 @@ Returns a list of `ChangeRecord` entries:
 - `previous`
 - `current`
 
+Competitor matching is case-insensitive (whitespace-trimmed) across snapshots.
+
 ### `summarize_changes` output
 Returns a list of `ChangeSummary` entries:
 - `competitor`

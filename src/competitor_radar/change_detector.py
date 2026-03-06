@@ -31,8 +31,27 @@ def _normalized(value: object) -> str:
     return str(value).strip()
 
 
+def _normalized_competitor_key(value: object) -> str:
+    return _normalized(value).casefold()
+
+
 def _index_by_competitor(snapshot: Sequence[Mapping[str, object]]) -> dict[str, Mapping[str, object]]:
-    return {_normalized(item.get("competitor")): item for item in snapshot}
+    """Index snapshot rows by case-insensitive competitor key.
+
+    If duplicate competitor names differ only by case/whitespace, the last record wins.
+    """
+
+    index: dict[str, Mapping[str, object]] = {}
+    for item in snapshot:
+        key = _normalized_competitor_key(item.get("competitor"))
+        if not key:
+            continue
+        index[key] = item
+    return index
+
+
+def _display_name(item: Mapping[str, object]) -> str:
+    return _normalized(item.get("competitor"))
 
 
 def detect_presence_changes(
@@ -41,11 +60,11 @@ def detect_presence_changes(
 ) -> PresenceDelta:
     """Detect added/removed competitors between snapshots."""
 
-    previous_names = {name for name in _index_by_competitor(previous_snapshot) if name}
-    current_names = {name for name in _index_by_competitor(current_snapshot) if name}
+    previous_index = _index_by_competitor(previous_snapshot)
+    current_index = _index_by_competitor(current_snapshot)
 
-    added = tuple(sorted(current_names - previous_names))
-    removed = tuple(sorted(previous_names - current_names))
+    added = tuple(sorted(_display_name(current_index[key]) for key in (set(current_index) - set(previous_index))))
+    removed = tuple(sorted(_display_name(previous_index[key]) for key in (set(previous_index) - set(current_index))))
     return PresenceDelta(added=added, removed=removed)
 
 
@@ -65,11 +84,10 @@ def detect_changes(
     current_index = _index_by_competitor(current_snapshot)
 
     changes: list[ChangeRecord] = []
-    for competitor in sorted(set(previous_index) & set(current_index)):
-        if not competitor:
-            continue
-        prev = previous_index[competitor]
-        curr = current_index[competitor]
+    for competitor_key in sorted(set(previous_index) & set(current_index)):
+        prev = previous_index[competitor_key]
+        curr = current_index[competitor_key]
+        competitor_name = _display_name(curr) or _display_name(prev)
 
         for field in fields:
             old = _normalized(prev.get(field))
@@ -77,7 +95,7 @@ def detect_changes(
             if old != new:
                 changes.append(
                     ChangeRecord(
-                        competitor=competitor,
+                        competitor=competitor_name,
                         field=field,
                         previous=old,
                         current=new,
