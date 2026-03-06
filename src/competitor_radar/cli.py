@@ -176,6 +176,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Exit with status 1 when one or more changes are detected (for CI checks)",
     )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Optional path to write the JSON report artifact",
+    )
     return parser
 
 
@@ -195,7 +200,13 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         parser.exit(2, f"error: {exc}\n")
 
-    print(json.dumps(report, indent=2))
+    report_json = json.dumps(report, indent=2)
+    print(report_json)
+
+    if args.output:
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(report_json + "\n", encoding="utf-8")
 
     if args.fail_on_change and _change_count(report) > 0:
         return 1

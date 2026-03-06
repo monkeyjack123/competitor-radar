@@ -78,3 +78,9 @@ Fail the command when changes are detected (useful in CI checks):
 PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --fail-on-change
 ```
 
+Write the JSON report to an artifact file while still printing to stdout:
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --summary --output artifacts/change-report.json
+```
+

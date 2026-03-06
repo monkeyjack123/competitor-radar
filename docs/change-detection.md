@@ -82,5 +82,11 @@ Use `--fail-on-change` to return exit code `1` if any change is detected (handy 
 PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --fail-on-change
 ```
 
+Use `--output <path>` to also persist the JSON report as a CI artifact (stdout output is unchanged):
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --summary --output artifacts/change-report.json
+```
+
 ## Demo data
 See `examples/snapshots.json` for before/after sample snapshots suitable for smoke tests and demos.

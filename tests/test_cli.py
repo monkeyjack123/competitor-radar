@@ -352,6 +352,41 @@ class CliTests(unittest.TestCase):
             output = json.loads(proc.stdout)
             self.assertEqual(["Nova"], output["diagnostics"]["previous"]["duplicate_competitors"])
 
+    def test_cli_module_can_write_output_artifact(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "snapshots.json"
+            output_path = Path(tmpdir) / "artifacts" / "report.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "previous": [{"competitor": "Nova", "positioning": "Old"}],
+                        "current": [{"competitor": "Nova", "positioning": "New"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    "python3",
+                    "-m",
+                    "competitor_radar.cli",
+                    str(path),
+                    "--field",
+                    "positioning",
+                    "--output",
+                    str(output_path),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                env={"PYTHONPATH": "src"},
+            )
+
+            stdout_payload = json.loads(proc.stdout)
+            file_payload = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(stdout_payload, file_payload)
+
     def test_run_change_report_rejects_bad_input_shape(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "bad.json"
