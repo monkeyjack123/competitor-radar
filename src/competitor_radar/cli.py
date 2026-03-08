@@ -138,6 +138,21 @@ def _change_count(report: list[dict[str, str]] | dict[str, object]) -> int:
     return 0
 
 
+def _presence_change_count(report: list[dict[str, str]] | dict[str, object]) -> int:
+    if isinstance(report, list):
+        return 0
+
+    presence = report.get("presence")
+    if not isinstance(presence, dict):
+        return 0
+
+    added = presence.get("added")
+    removed = presence.get("removed")
+    added_count = len(added) if isinstance(added, list) else 0
+    removed_count = len(removed) if isinstance(removed, list) else 0
+    return added_count + removed_count
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="competitor-radar",
@@ -174,7 +189,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--fail-on-change",
         action="store_true",
-        help="Exit with status 1 when one or more changes are detected (for CI checks)",
+        help="Exit with status 1 when one or more field-level changes are detected (for CI checks)",
+    )
+    parser.add_argument(
+        "--fail-on-presence",
+        action="store_true",
+        help="Exit with status 1 when competitors are added/removed between snapshots",
     )
     parser.add_argument(
         "--output",
@@ -193,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.snapshot_file),
             tracked_fields=args.field,
             include_summary=args.summary,
-            include_presence=args.presence,
+            include_presence=(args.presence or args.fail_on_presence),
             include_diagnostics=args.diagnostics,
             competitors=args.competitor,
         )
@@ -209,6 +229,9 @@ def main(argv: list[str] | None = None) -> int:
         output_path.write_text(report_json + "\n", encoding="utf-8")
 
     if args.fail_on_change and _change_count(report) > 0:
+        return 1
+
+    if args.fail_on_presence and _presence_change_count(report) > 0:
         return 1
 
     return 0

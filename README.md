@@ -72,10 +72,16 @@ Restrict output to one or more competitors (case-insensitive). Competitor matchi
 PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --competitor nova --competitor acme
 ```
 
-Fail the command when changes are detected (useful in CI checks):
+Fail the command when field-level changes are detected (useful in CI checks):
 
 ```bash
 PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --fail-on-change
+```
+
+Fail the command when competitors are added/removed between snapshots:
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --fail-on-presence
 ```
 
 Write the JSON report to an artifact file while still printing to stdout:
