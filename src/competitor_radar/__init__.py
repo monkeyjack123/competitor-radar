@@ -5,7 +5,12 @@ from .change_detector import (
     ChangeSummary,
     PresenceDelta,
     SnapshotDiagnostics,
+    OverlapStats,
+    FieldCoverage,
     analyze_snapshot,
+    calculate_field_coverage,
+    calculate_overlap_stats,
+    count_competitor_overlap,
     detect_changes,
     detect_presence_changes,
     summarize_changes,
@@ -13,6 +18,9 @@ from .change_detector import (
 
 __all__ = [
     "analyze_snapshot",
+    "calculate_field_coverage",
+    "calculate_overlap_stats",
+    "count_competitor_overlap",
     "detect_changes",
     "detect_presence_changes",
     "summarize_changes",
@@ -20,4 +28,6 @@ __all__ = [
     "ChangeSummary",
     "PresenceDelta",
     "SnapshotDiagnostics",
+    "OverlapStats",
+    "FieldCoverage",
 ]

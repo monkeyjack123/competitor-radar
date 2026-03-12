@@ -82,6 +82,19 @@ Use `--fail-on-change` to return exit code `1` if any change is detected (handy 
 PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --fail-on-change
 ```
 
+Use `--fail-on-duplicates` / `--fail-on-missing` to enforce snapshot hygiene in CI. These options automatically include diagnostics in the JSON output:
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --fail-on-duplicates
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --fail-on-missing
+```
+
+Use `--fail-on-no-overlap` to catch bad snapshot inputs (or overly restrictive `--competitor` filters) where previous/current share zero competitors:
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --fail-on-no-overlap
+```
+
 Use `--output <path>` to also persist the JSON report as a CI artifact (stdout output is unchanged):
 
 ```bash

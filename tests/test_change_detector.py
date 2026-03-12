@@ -1,6 +1,14 @@
 import unittest
 
-from competitor_radar import analyze_snapshot, detect_changes, detect_presence_changes, summarize_changes
+from competitor_radar import (
+    analyze_snapshot,
+    calculate_field_coverage,
+    calculate_overlap_stats,
+    count_competitor_overlap,
+    detect_changes,
+    detect_presence_changes,
+    summarize_changes,
+)
 
 
 class DetectChangesTests(unittest.TestCase):
@@ -86,6 +94,56 @@ class SnapshotDiagnosticsTests(unittest.TestCase):
 
         self.assertEqual(("Nova",), diagnostics.duplicate_competitors)
         self.assertEqual(2, diagnostics.missing_competitor_rows)
+
+
+class OverlapTests(unittest.TestCase):
+    def test_counts_overlap_case_insensitively(self):
+        previous = [{"competitor": "Acme"}, {"competitor": "Nova"}]
+        current = [{"competitor": "  acme "}, {"competitor": "Orbit"}]
+
+        self.assertEqual(1, count_competitor_overlap(previous, current))
+
+    def test_returns_zero_when_no_overlap(self):
+        previous = [{"competitor": "Acme"}]
+        current = [{"competitor": "Nova"}]
+
+        self.assertEqual(0, count_competitor_overlap(previous, current))
+
+    def test_calculates_overlap_stats(self):
+        previous = [{"competitor": "Acme"}, {"competitor": "Nova"}]
+        current = [{"competitor": "acme"}, {"competitor": "Orbit"}, {"competitor": "Kite"}]
+
+        stats = calculate_overlap_stats(previous, current)
+
+        self.assertEqual(2, stats.previous_count)
+        self.assertEqual(3, stats.current_count)
+        self.assertEqual(1, stats.overlap_count)
+        self.assertAlmostEqual(0.5, stats.overlap_ratio_previous)
+        self.assertAlmostEqual(1 / 3, stats.overlap_ratio_current)
+
+
+class CoverageTests(unittest.TestCase):
+    def test_calculates_field_coverage_for_previous_and_current(self):
+        previous = [
+            {"competitor": "Acme", "pricing": "$10", "positioning": "PMF"},
+            {"competitor": "Nova", "pricing": "", "positioning": ""},
+        ]
+        current = [
+            {"competitor": "Acme", "pricing": "$20", "positioning": "PMF"},
+            {"competitor": "Nova", "pricing": "$15", "positioning": ""},
+        ]
+
+        coverage = calculate_field_coverage(previous, current, tracked_fields=["pricing", "positioning"])
+
+        self.assertEqual("pricing", coverage[0].field)
+        self.assertEqual(1, coverage[0].previous_non_empty)
+        self.assertEqual(2, coverage[0].current_non_empty)
+        self.assertAlmostEqual(0.5, coverage[0].previous_ratio)
+        self.assertAlmostEqual(1.0, coverage[0].current_ratio)
+
+        self.assertEqual("positioning", coverage[1].field)
+        self.assertEqual(1, coverage[1].previous_non_empty)
+        self.assertEqual(1, coverage[1].current_non_empty)
 
 
 class SummarizeChangesTests(unittest.TestCase):
