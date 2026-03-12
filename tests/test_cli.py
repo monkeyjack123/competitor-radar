@@ -469,6 +469,68 @@ class CliTests(unittest.TestCase):
             self.assertEqual([], output["presence"]["added"])
             self.assertEqual([], output["presence"]["removed"])
 
+    def test_cli_module_fail_on_added_exits_non_zero_when_competitor_added(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "snapshots.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "previous": [{"competitor": "Nova"}],
+                        "current": [{"competitor": "Nova"}, {"competitor": "Orbit"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    "python3",
+                    "-m",
+                    "competitor_radar.cli",
+                    str(path),
+                    "--fail-on-added",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env={"PYTHONPATH": "src"},
+            )
+
+            self.assertEqual(1, proc.returncode)
+            output = json.loads(proc.stdout)
+            self.assertEqual(["Orbit"], output["presence"]["added"])
+
+    def test_cli_module_fail_on_removed_exits_non_zero_when_competitor_removed(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "snapshots.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "previous": [{"competitor": "Nova"}, {"competitor": "Acme"}],
+                        "current": [{"competitor": "Nova"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    "python3",
+                    "-m",
+                    "competitor_radar.cli",
+                    str(path),
+                    "--fail-on-removed",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env={"PYTHONPATH": "src"},
+            )
+
+            self.assertEqual(1, proc.returncode)
+            output = json.loads(proc.stdout)
+            self.assertEqual(["Acme"], output["presence"]["removed"])
+
     def test_run_change_report_includes_diagnostics_when_requested(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "snapshots.json"

@@ -177,18 +177,23 @@ def _change_count(report: list[dict[str, str]] | dict[str, object]) -> int:
     return 0
 
 
-def _presence_change_count(report: list[dict[str, str]] | dict[str, object]) -> int:
+def _presence_counts(report: list[dict[str, str]] | dict[str, object]) -> tuple[int, int]:
     if isinstance(report, list):
-        return 0
+        return (0, 0)
 
     presence = report.get("presence")
     if not isinstance(presence, dict):
-        return 0
+        return (0, 0)
 
     added = presence.get("added")
     removed = presence.get("removed")
     added_count = len(added) if isinstance(added, list) else 0
     removed_count = len(removed) if isinstance(removed, list) else 0
+    return (added_count, removed_count)
+
+
+def _presence_change_count(report: list[dict[str, str]] | dict[str, object]) -> int:
+    added_count, removed_count = _presence_counts(report)
     return added_count + removed_count
 
 
@@ -310,6 +315,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Exit with status 1 when competitors are added/removed between snapshots",
     )
     parser.add_argument(
+        "--fail-on-added",
+        action="store_true",
+        help="Exit with status 1 when one or more competitors are newly added in current snapshot",
+    )
+    parser.add_argument(
+        "--fail-on-removed",
+        action="store_true",
+        help="Exit with status 1 when one or more competitors are removed from previous snapshot",
+    )
+    parser.add_argument(
         "--fail-on-duplicates",
         action="store_true",
         help="Exit with status 1 when duplicate competitor names exist in either snapshot",
@@ -359,7 +374,7 @@ def main(argv: list[str] | None = None) -> int:
             Path(args.snapshot_file),
             tracked_fields=args.field,
             include_summary=args.summary,
-            include_presence=(args.presence or args.fail_on_presence),
+            include_presence=(args.presence or args.fail_on_presence or args.fail_on_added or args.fail_on_removed),
             include_diagnostics=(args.diagnostics or args.fail_on_duplicates or args.fail_on_missing),
             include_overlap=(args.overlap or args.fail_on_no_overlap or args.fail_on_overlap_below is not None),
             include_coverage=(args.coverage or args.fail_on_coverage_below is not None),
@@ -379,7 +394,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.fail_on_change and _change_count(report) > 0:
         return 1
 
-    if args.fail_on_presence and _presence_change_count(report) > 0:
+    added_count, removed_count = _presence_counts(report)
+
+    if args.fail_on_presence and (added_count + removed_count) > 0:
+        return 1
+
+    if args.fail_on_added and added_count > 0:
+        return 1
+
+    if args.fail_on_removed and removed_count > 0:
         return 1
 
     duplicate_count, missing_count = _diagnostic_issue_count(report)

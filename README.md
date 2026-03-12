@@ -84,6 +84,13 @@ Fail the command when competitors are added/removed between snapshots:
 PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --fail-on-presence
 ```
 
+Or gate each direction independently:
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --fail-on-added
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --fail-on-removed
+```
+
 Fail the command when snapshot hygiene issues are present (duplicates or missing `competitor` rows):
 
 ```bash
