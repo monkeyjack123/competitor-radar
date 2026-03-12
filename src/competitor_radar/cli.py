@@ -10,7 +10,12 @@ from .change_detector import (
     ChangeSummary,
     PresenceDelta,
     SnapshotDiagnostics,
+    OverlapStats,
+    FieldCoverage,
     analyze_snapshot,
+    calculate_field_coverage,
+    calculate_overlap_stats,
+    count_competitor_overlap,
     detect_changes,
     detect_presence_changes,
     summarize_changes,
@@ -87,12 +92,36 @@ def _diagnostics_to_dict(record: SnapshotDiagnostics) -> dict[str, object]:
     }
 
 
+def _overlap_to_dict(record: OverlapStats) -> dict[str, object]:
+    return {
+        "previous_count": record.previous_count,
+        "current_count": record.current_count,
+        "overlap_count": record.overlap_count,
+        "overlap_ratio_previous": record.overlap_ratio_previous,
+        "overlap_ratio_current": record.overlap_ratio_current,
+    }
+
+
+def _coverage_to_dict(record: FieldCoverage) -> dict[str, object]:
+    return {
+        "field": record.field,
+        "previous_non_empty": record.previous_non_empty,
+        "previous_total": record.previous_total,
+        "previous_ratio": record.previous_ratio,
+        "current_non_empty": record.current_non_empty,
+        "current_total": record.current_total,
+        "current_ratio": record.current_ratio,
+    }
+
+
 def run_change_report(
     path: Path,
     tracked_fields: list[str] | None = None,
     include_summary: bool = False,
     include_presence: bool = False,
     include_diagnostics: bool = False,
+    include_overlap: bool = False,
+    include_coverage: bool = False,
     competitors: list[str] | None = None,
 ) -> list[dict[str, str]] | dict[str, object]:
     payload = _load_payload(path)
@@ -106,7 +135,7 @@ def run_change_report(
     )
     change_rows = [_to_dict(item) for item in changes]
 
-    if not include_summary and not include_presence and not include_diagnostics:
+    if not include_summary and not include_presence and not include_diagnostics and not include_overlap and not include_coverage:
         return change_rows
 
     response: dict[str, object] = {"changes": change_rows}
@@ -124,6 +153,16 @@ def run_change_report(
             "previous": _diagnostics_to_dict(analyze_snapshot(previous_snapshot)),
             "current": _diagnostics_to_dict(analyze_snapshot(current_snapshot)),
         }
+
+    if include_overlap:
+        response["overlap"] = _overlap_to_dict(calculate_overlap_stats(previous_snapshot, current_snapshot))
+
+    if include_coverage:
+        coverage_rows = [
+            _coverage_to_dict(item)
+            for item in calculate_field_coverage(previous_snapshot, current_snapshot, tracked_fields=tracked_fields)
+        ]
+        response["coverage"] = coverage_rows
 
     return response
 
@@ -151,6 +190,70 @@ def _presence_change_count(report: list[dict[str, str]] | dict[str, object]) -> 
     added_count = len(added) if isinstance(added, list) else 0
     removed_count = len(removed) if isinstance(removed, list) else 0
     return added_count + removed_count
+
+
+def _diagnostic_issue_count(report: list[dict[str, str]] | dict[str, object]) -> tuple[int, int]:
+    if isinstance(report, list):
+        return (0, 0)
+
+    diagnostics = report.get("diagnostics")
+    if not isinstance(diagnostics, dict):
+        return (0, 0)
+
+    duplicate_count = 0
+    missing_count = 0
+    for snapshot_key in ("previous", "current"):
+        snapshot_diag = diagnostics.get(snapshot_key)
+        if not isinstance(snapshot_diag, dict):
+            continue
+
+        duplicates = snapshot_diag.get("duplicate_competitors")
+        if isinstance(duplicates, list):
+            duplicate_count += len(duplicates)
+
+        missing = snapshot_diag.get("missing_competitor_rows")
+        if isinstance(missing, int):
+            missing_count += max(missing, 0)
+
+    return (duplicate_count, missing_count)
+
+
+def _overlap_min_ratio(report: list[dict[str, str]] | dict[str, object]) -> float | None:
+    if isinstance(report, list):
+        return None
+
+    overlap = report.get("overlap")
+    if not isinstance(overlap, dict):
+        return None
+
+    prev_ratio = overlap.get("overlap_ratio_previous")
+    curr_ratio = overlap.get("overlap_ratio_current")
+    if not isinstance(prev_ratio, (int, float)) or not isinstance(curr_ratio, (int, float)):
+        return None
+
+    return float(min(prev_ratio, curr_ratio))
+
+
+def _coverage_min_current_ratio(report: list[dict[str, str]] | dict[str, object]) -> float | None:
+    if isinstance(report, list):
+        return None
+
+    coverage = report.get("coverage")
+    if not isinstance(coverage, list) or not coverage:
+        return None
+
+    ratios: list[float] = []
+    for row in coverage:
+        if not isinstance(row, dict):
+            continue
+        ratio = row.get("current_ratio")
+        if isinstance(ratio, (int, float)):
+            ratios.append(float(ratio))
+
+    if not ratios:
+        return None
+
+    return min(ratios)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -187,6 +290,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include duplicate/missing competitor diagnostics for each snapshot",
     )
     parser.add_argument(
+        "--overlap",
+        action="store_true",
+        help="Include overlap counts/ratios for previous vs current snapshots",
+    )
+    parser.add_argument(
+        "--coverage",
+        action="store_true",
+        help="Include tracked-field non-empty coverage for previous/current snapshots",
+    )
+    parser.add_argument(
         "--fail-on-change",
         action="store_true",
         help="Exit with status 1 when one or more field-level changes are detected (for CI checks)",
@@ -195,6 +308,33 @@ def build_parser() -> argparse.ArgumentParser:
         "--fail-on-presence",
         action="store_true",
         help="Exit with status 1 when competitors are added/removed between snapshots",
+    )
+    parser.add_argument(
+        "--fail-on-duplicates",
+        action="store_true",
+        help="Exit with status 1 when duplicate competitor names exist in either snapshot",
+    )
+    parser.add_argument(
+        "--fail-on-missing",
+        action="store_true",
+        help="Exit with status 1 when rows are missing `competitor` in either snapshot",
+    )
+    parser.add_argument(
+        "--fail-on-no-overlap",
+        action="store_true",
+        help="Exit with status 1 when previous/current snapshots have zero overlapping competitors",
+    )
+    parser.add_argument(
+        "--fail-on-overlap-below",
+        type=float,
+        default=None,
+        help="Exit with status 1 when min(previous_overlap_ratio,current_overlap_ratio) is below threshold (0.0-1.0)",
+    )
+    parser.add_argument(
+        "--fail-on-coverage-below",
+        type=float,
+        default=None,
+        help="Exit with status 1 when min(current_ratio) across coverage fields is below threshold (0.0-1.0)",
     )
     parser.add_argument(
         "--output",
@@ -208,13 +348,21 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    if args.fail_on_overlap_below is not None and not (0.0 <= args.fail_on_overlap_below <= 1.0):
+        parser.exit(2, "error: --fail-on-overlap-below must be between 0.0 and 1.0\n")
+
+    if args.fail_on_coverage_below is not None and not (0.0 <= args.fail_on_coverage_below <= 1.0):
+        parser.exit(2, "error: --fail-on-coverage-below must be between 0.0 and 1.0\n")
+
     try:
         report = run_change_report(
             Path(args.snapshot_file),
             tracked_fields=args.field,
             include_summary=args.summary,
             include_presence=(args.presence or args.fail_on_presence),
-            include_diagnostics=args.diagnostics,
+            include_diagnostics=(args.diagnostics or args.fail_on_duplicates or args.fail_on_missing),
+            include_overlap=(args.overlap or args.fail_on_no_overlap or args.fail_on_overlap_below is not None),
+            include_coverage=(args.coverage or args.fail_on_coverage_below is not None),
             competitors=args.competitor,
         )
     except (OSError, json.JSONDecodeError, ValueError) as exc:
@@ -233,6 +381,30 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.fail_on_presence and _presence_change_count(report) > 0:
         return 1
+
+    duplicate_count, missing_count = _diagnostic_issue_count(report)
+    if args.fail_on_duplicates and duplicate_count > 0:
+        return 1
+
+    if args.fail_on_missing and missing_count > 0:
+        return 1
+
+    if args.fail_on_no_overlap:
+        payload = _load_payload(Path(args.snapshot_file))
+        previous_snapshot = _filter_snapshot_by_competitors(payload["previous"], args.competitor)
+        current_snapshot = _filter_snapshot_by_competitors(payload["current"], args.competitor)
+        if count_competitor_overlap(previous_snapshot, current_snapshot) == 0:
+            return 1
+
+    if args.fail_on_overlap_below is not None:
+        min_ratio = _overlap_min_ratio(report)
+        if min_ratio is not None and min_ratio < args.fail_on_overlap_below:
+            return 1
+
+    if args.fail_on_coverage_below is not None:
+        min_coverage_ratio = _coverage_min_current_ratio(report)
+        if min_coverage_ratio is not None and min_coverage_ratio < args.fail_on_coverage_below:
+            return 1
 
     return 0
 
