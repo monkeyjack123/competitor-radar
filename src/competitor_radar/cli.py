@@ -310,6 +310,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Exit with status 1 when one or more field-level changes are detected (for CI checks)",
     )
     parser.add_argument(
+        "--fail-on-change-count-above",
+        type=int,
+        default=None,
+        help="Exit with status 1 when field-level change count exceeds threshold (integer >= 0)",
+    )
+    parser.add_argument(
         "--fail-on-presence",
         action="store_true",
         help="Exit with status 1 when competitors are added/removed between snapshots",
@@ -369,6 +375,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.fail_on_coverage_below is not None and not (0.0 <= args.fail_on_coverage_below <= 1.0):
         parser.exit(2, "error: --fail-on-coverage-below must be between 0.0 and 1.0\n")
 
+    if args.fail_on_change_count_above is not None and args.fail_on_change_count_above < 0:
+        parser.exit(2, "error: --fail-on-change-count-above must be >= 0\n")
+
     try:
         report = run_change_report(
             Path(args.snapshot_file),
@@ -392,6 +401,9 @@ def main(argv: list[str] | None = None) -> int:
         output_path.write_text(report_json + "\n", encoding="utf-8")
 
     if args.fail_on_change and _change_count(report) > 0:
+        return 1
+
+    if args.fail_on_change_count_above is not None and _change_count(report) > args.fail_on_change_count_above:
         return 1
 
     added_count, removed_count = _presence_counts(report)

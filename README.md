@@ -78,6 +78,12 @@ Fail the command when field-level changes are detected (useful in CI checks):
 PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --fail-on-change
 ```
 
+Or tolerate small churn and fail only when the number of field-level changes exceeds a threshold:
+
+```bash
+PYTHONPATH=src python3 -m competitor_radar.cli examples/snapshots.json --field pricing --fail-on-change-count-above 3
+```
+
 Fail the command when competitors are added/removed between snapshots:
 
 ```bash

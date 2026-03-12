@@ -405,6 +405,74 @@ class CliTests(unittest.TestCase):
             output = json.loads(proc.stdout)
             self.assertEqual([], output)
 
+    def test_cli_module_fail_on_change_count_above_exits_non_zero_when_threshold_exceeded(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "snapshots.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "previous": [{"competitor": "Nova", "positioning": "Old", "pricing": "$10"}],
+                        "current": [{"competitor": "Nova", "positioning": "New", "pricing": "$20"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    "python3",
+                    "-m",
+                    "competitor_radar.cli",
+                    str(path),
+                    "--field",
+                    "positioning",
+                    "--field",
+                    "pricing",
+                    "--fail-on-change-count-above",
+                    "1",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env={"PYTHONPATH": "src"},
+            )
+
+            self.assertEqual(1, proc.returncode)
+
+    def test_cli_module_fail_on_change_count_above_exits_zero_when_at_threshold(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "snapshots.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "previous": [{"competitor": "Nova", "positioning": "Old", "pricing": "$10"}],
+                        "current": [{"competitor": "Nova", "positioning": "New", "pricing": "$20"}],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    "python3",
+                    "-m",
+                    "competitor_radar.cli",
+                    str(path),
+                    "--field",
+                    "positioning",
+                    "--field",
+                    "pricing",
+                    "--fail-on-change-count-above",
+                    "2",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env={"PYTHONPATH": "src"},
+            )
+
+            self.assertEqual(0, proc.returncode)
+
     def test_cli_module_fail_on_presence_exits_non_zero_when_presence_changes(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "snapshots.json"
@@ -853,6 +921,32 @@ class CliTests(unittest.TestCase):
 
             self.assertEqual(2, proc.returncode)
             self.assertIn("must be between 0.0 and 1.0", proc.stderr)
+
+    def test_cli_module_rejects_invalid_change_count_threshold(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "snapshots.json"
+            path.write_text(
+                json.dumps({"previous": [{"competitor": "Acme"}], "current": [{"competitor": "Acme"}]}),
+                encoding="utf-8",
+            )
+
+            proc = subprocess.run(
+                [
+                    "python3",
+                    "-m",
+                    "competitor_radar.cli",
+                    str(path),
+                    "--fail-on-change-count-above",
+                    "-1",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env={"PYTHONPATH": "src"},
+            )
+
+            self.assertEqual(2, proc.returncode)
+            self.assertIn("--fail-on-change-count-above must be >= 0", proc.stderr)
 
     def test_cli_module_fail_on_coverage_below_exits_non_zero(self):
         with tempfile.TemporaryDirectory() as tmpdir:
